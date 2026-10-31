@@ -1,0 +1,235 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Boyer–Moore Majority Vote, Visualized</title>
+<style>
+:root{--bg:#f4efe6;--ink:#2f3a4a;--muted:#6b7686;--line:#d9cfbe;--btn:#fffaf2;--acc:#ff8a5b;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){--bg:#1f2430;--ink:#e8ecf3;--muted:#9aa5b8;--line:#3a4256;--btn:#2a3142}}
+:root[data-theme="dark"]{--bg:#1f2430;--ink:#e8ecf3;--muted:#9aa5b8;--line:#3a4256;--btn:#2a3142}
+*{box-sizing:border-box}
+html,body{margin:0}
+body{background:var(--bg);color:var(--ink);font-family:"Nunito","Segoe UI",system-ui,sans-serif;min-height:100%;padding:16px}
+.wrap{max-width:960px;margin:0 auto}
+h1{font-size:1.25rem;margin:0 0 10px}
+.video{border-radius:18px;overflow:hidden;background:linear-gradient(160deg,#fff6e8,#e6f3ff);color:#2f3a4a;box-shadow:0 6px 24px rgba(0,0,0,.15)}
+.vwrap{position:relative;width:100%;aspect-ratio:900/440;overflow:hidden}
+.stage{position:absolute;left:0;top:0;width:900px;height:440px;transform-origin:0 0}
+.tag{position:absolute;left:16px;top:10px;background:#fff;border-radius:999px;padding:5px 14px;font-weight:800;font-size:15px;box-shadow:0 2px 6px rgba(0,0,0,.08)}
+.vt{position:absolute;left:0;top:0;width:60px;height:60px;border-radius:50%;border:3px solid rgba(0,0,0,.12);display:flex;align-items:center;justify-content:center;font-weight:900;font-size:26px;transition:transform .7s cubic-bezier(.5,0,.2,1),opacity .5s,filter .5s,box-shadow .3s;box-shadow:0 2px 5px rgba(0,0,0,.12)}
+.vt.cur{box-shadow:0 0 0 4px #fff,0 0 0 7px #ff8a5b}
+.vt.seen{opacity:.6}
+.vt.cancel{opacity:.4;filter:grayscale(1)}
+.vt.cancel::after{content:"✕";position:absolute;font-size:34px;color:#e5484d}
+.vt.hit{box-shadow:0 0 0 4px #fff,0 0 0 7px #4cb782;opacity:1}
+.vt.miss{opacity:.3}
+.vt.hide{opacity:0}
+.bd{position:absolute;left:0;top:0;width:60px;text-align:center;font-weight:900;font-size:14px;transition:transform .7s cubic-bezier(.5,0,.2,1),opacity .4s;opacity:0}
+.panel{position:absolute;top:185px;width:300px;height:205px;border-radius:18px;background:#fff;box-shadow:0 3px 12px rgba(0,0,0,.08);text-align:center;transition:opacity .6s;opacity:0}
+.panel.show{opacity:1}
+.panel .pl{margin-top:10px;font-size:13px;font-weight:800;letter-spacing:.08em;text-transform:uppercase;color:#8a94a6}
+#cc{width:110px;height:110px;margin:22px auto 0;border-radius:50%;border:4px solid rgba(0,0,0,.12);display:flex;align-items:center;justify-content:center;font-size:54px;font-weight:900;transition:background .5s}
+#cn{font-size:64px;font-weight:900;line-height:1;margin-top:10px}
+.tk{position:absolute;top:148px;width:34px;height:34px;border-radius:50%;border:3px solid rgba(0,0,0,.12);transition:transform .4s,opacity .4s,background .4s;opacity:0;transform:scale(.3)}
+.tk.on{opacity:1;transform:scale(1)}
+.note{position:absolute;left:130px;width:640px;top:398px;height:34px;border-radius:999px;background:#fff;box-shadow:0 2px 8px rgba(0,0,0,.08);display:flex;align-items:center;justify-content:center;font-weight:800;font-size:16px;transition:opacity .4s}
+.cap{padding:14px 18px;min-height:84px;font-size:clamp(15px,2.3vw,19px);line-height:1.45;font-weight:700;background:rgba(255,255,255,.7);display:flex;align-items:center}
+.start{position:absolute;inset:0;background:rgba(255,246,232,.92);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:12px;z-index:20;cursor:pointer;text-align:center;padding:12px}
+.start h2{margin:0;font-size:clamp(22px,5vw,38px)}
+.start p{margin:0;color:#5b6678;font-weight:700}
+.big{width:76px;height:76px;border-radius:50%;background:#ff8a5b;color:#fff;font-size:32px;display:flex;align-items:center;justify-content:center;box-shadow:0 6px 16px rgba(255,138,91,.5)}
+.bar{margin-top:12px;height:12px;background:var(--line);border-radius:99px;cursor:pointer;overflow:hidden}
+.bar i{display:block;height:100%;width:0;background:linear-gradient(90deg,#7cc8ff,#ff8a5b);border-radius:99px}
+.ctl{display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin-top:12px}
+button{font:inherit;font-weight:800;background:var(--btn);color:var(--ink);border:2px solid var(--line);border-radius:12px;padding:8px 14px;cursor:pointer}
+button:hover{border-color:var(--acc)}
+button.on{background:var(--acc);color:#fff;border-color:var(--acc)}
+.time{margin-left:auto;color:var(--muted);font-weight:800;font-variant-numeric:tabular-nums}
+</style>
+</head>
+<body>
+<div class="wrap">
+<h1>Boyer–Moore Majority Vote, Visualized</h1>
+<div class="video">
+  <div class="vwrap" id="vw">
+    <div class="stage" id="stage"></div>
+    <div class="start" id="start"><div class="big">▶</div><h2>Boyer–Moore Majority Vote</h2><p>About 5 minutes · tap to start</p></div>
+  </div>
+  <div class="cap" id="cap"></div>
+</div>
+<div class="bar" id="bar"><i id="fill"></i></div>
+<div class="ctl">
+  <button id="play">▶ Play</button>
+  <button id="prev">⏮ Back</button>
+  <button id="next">Next ⏭</button>
+  <button id="restart">↺ Restart</button>
+  <button id="speed">Speed 1×</button>
+  <button id="voice">🔈 Voice off</button>
+  <span class="time" id="time">0:00 / 0:00</span>
+</div>
+</div>
+<script>
+const COL={A:150,B:12,C:205}, col=v=>`hsl(${COL[v]} ${v==='B'?92:70}% 80%)`;
+const D1=['B','B','A','A','A','B','A','A','C'], D2=['A','B','C','C','B'];
+const steps=[];
+const S=(cap,fn,min=4)=>steps.push({cap,fn,min});
+
+// ---------- intro ----------
+S('Welcome! Today we explore the Boyer–Moore majority vote algorithm. It finds the element that appears more than half the time, in a single pass, using just two variables.',s=>{s.tag='Boyer–Moore'});
+S('Here is the problem: nine ballots, B, B, A, A, A, B, A, A and C. Which candidate has a majority, meaning strictly more than half of all the votes?',s=>{s.show=true;s.tag='The ballots'});
+S('The easy way is to tally every candidate in a hash map. That works, but the memory grows with the number of different candidates. Boyer and Moore found a much leaner way.',s=>{});
+S('The big idea: cancel out votes. Imagine every vote for someone else pairs off with one vote for the leader and both disappear. A true majority has more votes than everybody else combined, so it always survives.',s=>{s.tag='Cancel out votes'},5);
+S('We only track two things. The candidate, our current guess for the winner, and the count, how many unmatched votes that candidate has right now.',s=>{s.panels=true;s.tag='Two variables'});
+S('Rule one: if the count is 0, the current vote becomes the new candidate, and the count becomes 1.',s=>{});
+S('Rule two: otherwise, if the vote matches the candidate, add 1 to the count. If it is different, subtract 1, because two opposing votes cancel each other out.',s=>{});
+S('Let’s run it. We start with no candidate and a count of 0, then walk through the ballots from left to right, one time only.',s=>{s.tag='Pass 1 · find a candidate'});
+
+function sim(arr,extras){
+  let cand=null,cnt=0;
+  arr.forEach((v,j)=>{
+    let cap,mark,note;const pc=cand;
+    if(cnt===0){cand=v;cnt=1;mark='adopt';note=`${v} is the new candidate`;
+      cap=`Vote ${j+1} is ${v}. The count is 0, so ${v} becomes the candidate with count 1.`+(pc&&pc!==v?` ${v} takes over from ${pc}.`:'')}
+    else if(v===cand){cnt++;mark='inc';note=`${v} matches ${cand}: count +1`;
+      cap=`Vote ${j+1} is ${v}. It matches the candidate, so the count goes up to ${cnt}.`}
+    else{cnt--;mark='dec';note=`${v} ≠ ${cand}: the pair cancels, count −1`;
+      cap=`Vote ${j+1} is ${v}, but the candidate is ${cand}. The two votes cancel out and the count drops to ${cnt}.`+(cnt===0?' Count is 0: nothing is left over.':'')}
+    const c=cand,n=cnt;
+    S(cap,s=>{s.cur=j;s.cand=c;s.cnt=n;s.marks[j]=mark;s.note=note},3.5);
+    if(extras&&extras[j]) S(extras[j],s=>{},4);
+  });
+  return {cand,cnt};
+}
+const r1=sim(D1,{
+  1:'Two B votes in a row: B has built a small lead of 2. Remember, the count is the number of spare votes, not the total votes.',
+  2:'Think of it like this: an A supporter and a B supporter meet, shake hands and both go home. One B vote is gone, one A vote is gone.',
+  3:'The count is back to 0. Everything seen so far has been cancelled in pairs, so we may start fresh. It does not matter that B led earlier.',
+  6:'Again the count hits 0 after a cancellation. Notice the pattern: the candidate can change, but each change only happens when all earlier votes have cancelled out.'
+});
+S(`The pass is over. Candidate: ${r1.cand}, count: ${r1.cnt}. A count of ${r1.cnt} does not mean ${r1.cand} has only ${r1.cnt} vote. It means ${r1.cand} has ${r1.cnt} vote left over after all the cancellations.`,
+  s=>{s.cur=-1;s.tag='Candidate found: A';s.note='Candidate: A'},6);
+S('Careful! This candidate is only guaranteed to be the majority if a majority exists at all. In a list like 1, 2, 3, the algorithm ends with candidate 3, which is not a majority.',s=>{});
+S('So we do a second pass to verify: count how many times A really appears.',s=>{s.tag='Pass 2 · verify';s.verify='A';s.note='Counting every A…'});
+const total=D1.filter(v=>v==='A').length;
+S(`A appears ${total} times out of ${D1.length}. Half of ${D1.length} is 4 and a half, and ${total} is more than that. Confirmed: A is the majority!`,
+  s=>{s.note=`A: ${total} of ${D1.length} > half ✓`;s.tag='Majority: A ✓'},6);
+
+// ---------- demo 2 ----------
+S('Let’s try a trickier list with no majority at all: A, B, C, C and B. Five votes, so a majority would need at least 3.',
+  s=>{s.arr=D2;s.marks={};s.cur=-1;s.cand=null;s.cnt=0;s.verify=null;s.note='';s.tag='Demo 2 · no majority'},5);
+const r2=sim(D2);
+S(`The first pass ends with candidate ${r2.cand} and count ${r2.cnt}. The algorithm always hands us a candidate, even when nobody deserves to win. So we verify.`,
+  s=>{s.cur=-1;s.verify=r2.cand;s.note=`Counting every ${r2.cand}…`;s.tag='Pass 2 · verify'},5);
+const t2=D2.filter(v=>v===r2.cand).length;
+S(`${r2.cand} appears only ${t2} times out of ${D2.length}, which is not more than half. So there is no majority element. This is why the second pass matters.`,
+  s=>{s.note=`${r2.cand}: ${t2} of ${D2.length} — not enough ✗`;s.tag='No majority ✗'},6);
+
+// ---------- outro ----------
+S('Why does it work? Every cancellation removes one vote for the leader and one vote for someone else. A true majority has more than half of all votes, so it can never be fully cancelled out.',s=>{s.note='';s.tag='Why it works'},6);
+S('How fast is it? One pass to find the candidate and one to verify, so linear time. And the memory is constant: just a candidate and a count, no matter how many candidates exist.',s=>{s.tag='Complexity'},6);
+S('It is perfect for streaming data, since it looks at each item once and never needs to look back. A generalization, the Misra–Gries algorithm, finds every element that appears more than n over k times.',s=>{},6);
+S('Recap: keep a candidate and a count. Zero count? Adopt the vote. Same vote? Add one. Different vote? Subtract one. Then verify the winner. Thanks for watching!',s=>{s.tag='Recap'},6);
+
+steps.forEach(st=>{st.dur=Math.max(st.min,st.cap.split(/\s+/).length/3+0.9)});
+const cum=[0]; steps.forEach(st=>cum.push(cum[cum.length-1]+st.dur));
+const TOTAL=cum[cum.length-1];
+
+// ---------- stage ----------
+const stage=document.getElementById('stage');
+const $=id=>document.getElementById(id);
+const tagEl=Object.assign(document.createElement('div'),{className:'tag'}); stage.appendChild(tagEl);
+const vts=[],bds=[];
+for(let i=0;i<9;i++){
+  const e=document.createElement('div');e.className='vt hide';stage.appendChild(e);vts.push(e);
+  const b=document.createElement('div');b.className='bd';stage.appendChild(b);bds.push(b);
+}
+stage.insertAdjacentHTML('beforeend',`
+<div class="panel" id="p1" style="left:130px"><div class="pl">Candidate</div><div id="cc">?</div></div>
+<div class="panel" id="p2" style="left:470px"><div class="pl">Count (spare votes)</div><div id="cn">0</div></div>
+<div class="note" id="note"></div>`);
+const tks=[];
+for(let i=0;i<6;i++){const t=document.createElement('div');t.className='tk';t.style.left=(470+23+i*44)+'px';stage.appendChild(t);tks.push(t)}
+
+let state, idx=0, el=0, playing=false, speed=1, voice=false;
+function build(i){
+  const s={arr:D1,marks:{},show:false,panels:false,cur:-1,cand:null,cnt:0,verify:null,note:'',tag:''};
+  for(let j=0;j<=i;j++) steps[j].fn(s);
+  return s;
+}
+const BADGE={inc:['+1','#2e9e6b'],dec:['−1','#e5484d'],adopt:['★ new','#d98a00']};
+function render(){
+  const s=state,n=s.arr.length,x0=(900-(n*72-12))/2;
+  tagEl.textContent=s.tag||'Boyer–Moore';
+  vts.forEach((e,i)=>{
+    const b=bds[i];
+    if(i>=n||!s.show){e.className='vt hide';e.style.transform=`translate(${x0+i*72}px,70px)`;b.style.opacity=0;return}
+    const v=s.arr[i],m=s.marks[i];
+    e.textContent=v;e.style.background=col(v);
+    let c='vt';
+    if(s.verify){c+=v===s.verify?' hit':' miss'}
+    else{if(i===s.cur)c+=' cur';else if(m)c+=' seen';if(m==='dec')c+=' cancel'}
+    e.className=c;
+    e.style.transform=`translate(${x0+i*72}px,${i===s.cur&&!s.verify?60:70}px)`;
+    b.style.transform=`translate(${x0+i*72}px,142px)`;
+    if(m&&!s.verify){b.textContent=BADGE[m][0];b.style.color=BADGE[m][1];b.style.opacity=1}else b.style.opacity=0;
+  });
+  $('p1').classList.toggle('show',s.panels);$('p2').classList.toggle('show',s.panels);
+  const cc=$('cc');cc.textContent=s.cand||'?';cc.style.background=s.cand?col(s.cand):'#eef1f5';
+  $('cn').textContent=s.cnt;
+  tks.forEach((t,i)=>{t.classList.toggle('on',s.panels&&i<s.cnt);if(s.cand)t.style.background=col(s.cand)});
+  $('note').textContent=s.note;$('note').style.opacity=s.note?1:0;
+}
+const fmt=t=>{t=Math.floor(t);return Math.floor(t/60)+':'+String(t%60).padStart(2,'0')};
+function speak(){
+  if(!('speechSynthesis' in window)) return;
+  speechSynthesis.cancel();
+  if(!voice||!playing) return;
+  try{const u=new SpeechSynthesisUtterance(steps[idx].cap.replace(/≠/g,'is not').replace(/[·→−]/g,','));u.rate=Math.min(1.1*speed,2);speechSynthesis.speak(u)}catch(e){}
+}
+function go(i,e0=0){
+  idx=Math.max(0,Math.min(steps.length-1,i)); el=e0; state=build(idx); render();
+  $('cap').textContent=steps[idx].cap; upd(); speak();
+}
+function upd(){
+  const t=cum[idx]+Math.min(el,steps[idx].dur);
+  $('fill').style.width=(t/TOTAL*100)+'%'; $('time').textContent=fmt(t)+' / '+fmt(TOTAL);
+}
+function setPlay(p){
+  playing=p; $('play').textContent=p?'⏸ Pause':'▶ Play'; $('play').classList.toggle('on',p);
+  if(p){$('start').style.display='none'; speak()} else if('speechSynthesis' in window) speechSynthesis.cancel();
+}
+let last=0;
+function tick(ts){
+  const dt=Math.min((ts-last)/1000,0.2); last=ts;
+  if(playing){
+    el+=dt*speed;
+    if(el>=steps[idx].dur){
+      if(idx<steps.length-1) go(idx+1); else {el=steps[idx].dur;setPlay(false)}
+    }
+    upd();
+  }
+  requestAnimationFrame(tick);
+}
+$('play').onclick=()=>{ if(!playing&&idx===steps.length-1&&el>=steps[idx].dur-0.01) go(0); setPlay(!playing) };
+$('start').onclick=()=>setPlay(true);
+$('prev').onclick=()=>go(idx-1);
+$('next').onclick=()=>go(idx+1);
+$('restart').onclick=()=>{go(0);setPlay(true)};
+(function(){const seq=[1,1.5,2,0.75];let k=0;$('speed').onclick=()=>{k=(k+1)%seq.length;speed=seq[k];$('speed').textContent='Speed '+speed+'×';if(voice&&playing)speak()}})();
+$('voice').onclick=()=>{voice=!voice;$('voice').classList.toggle('on',voice);$('voice').textContent=voice?'🔊 Voice on':'🔈 Voice off';speak()};
+$('bar').onclick=e=>{
+  const r=e.currentTarget.getBoundingClientRect(), t=(e.clientX-r.left)/r.width*TOTAL;
+  let i=cum.findIndex((c,j)=>t>=c&&t<cum[j+1]); if(i<0)i=steps.length-1;
+  go(i,t-cum[i]);
+};
+document.addEventListener('keydown',e=>{
+  if(e.code==='Space'){e.preventDefault();$('play').click()}
+  if(e.code==='ArrowRight')go(idx+1); if(e.code==='ArrowLeft')go(idx-1);
+});
+function fit(){stage.style.transform=`scale(${$('vw').clientWidth/900})`}
+new ResizeObserver(fit).observe($('vw')); fit();
+go(0); requestAnimationFrame(t=>{last=t;requestAnimationFrame(tick)});
+</script>
+</body>
+</html>

@@ -1,0 +1,213 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Radix Sort, Visualized</title>
+<style>
+:root{--bg:#f4efe6;--ink:#2f3a4a;--muted:#6b7686;--line:#d9cfbe;--btn:#fffaf2;--acc:#ff8a5b;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){--bg:#1f2430;--ink:#e8ecf3;--muted:#9aa5b8;--line:#3a4256;--btn:#2a3142}}
+:root[data-theme="dark"]{--bg:#1f2430;--ink:#e8ecf3;--muted:#9aa5b8;--line:#3a4256;--btn:#2a3142}
+*{box-sizing:border-box}
+html,body{margin:0}
+body{background:var(--bg);color:var(--ink);font-family:"Nunito","Segoe UI",system-ui,sans-serif;min-height:100%;padding:16px}
+.wrap{max-width:960px;margin:0 auto}
+h1{font-size:1.25rem;margin:0 0 10px}
+.video{border-radius:18px;overflow:hidden;background:linear-gradient(160deg,#fff6e8,#e6f3ff);color:#2f3a4a;box-shadow:0 6px 24px rgba(0,0,0,.15)}
+.vwrap{position:relative;width:100%;aspect-ratio:900/440;overflow:hidden}
+.stage{position:absolute;left:0;top:0;width:900px;height:440px;transform-origin:0 0}
+.tag{position:absolute;left:16px;top:10px;background:#fff;border-radius:999px;padding:5px 14px;font-weight:800;font-size:15px;box-shadow:0 2px 6px rgba(0,0,0,.08);transition:all .4s}
+.lbl{position:absolute;font-size:12px;font-weight:800;letter-spacing:.08em;color:#8a94a6;text-transform:uppercase}
+.bk{position:absolute;top:150px;width:80px;height:280px;border-radius:14px;border:2px solid;opacity:0;transition:opacity .6s,box-shadow .3s,transform .3s}
+.bk.show{opacity:1}
+.bk.on{box-shadow:0 0 0 4px #fff,0 0 0 7px rgba(255,138,91,.8);transform:translateY(-3px)}
+.bk b{display:block;text-align:center;font-size:22px;padding-top:4px}
+.it{position:absolute;left:0;top:0;width:68px;height:32px;border-radius:9px;border:2px solid rgba(0,0,0,.12);display:flex;align-items:center;justify-content:center;font:800 19px ui-monospace,Menlo,Consolas,monospace;transition:transform .8s cubic-bezier(.5,0,.2,1),box-shadow .3s;box-shadow:0 2px 4px rgba(0,0,0,.1)}
+.it.act{box-shadow:0 0 0 3px #fff,0 0 0 5px #ff8a5b;z-index:5}
+.it.done{border-color:#4cb782;animation:pop .6s ease}
+.it span{padding:0 1px;border-radius:4px;transition:background .3s}
+.it span.hd{background:#ffc94d;color:#2f2a1c;box-shadow:0 0 0 2px #ffc94d}
+@keyframes pop{50%{transform:translateY(-6px)}}
+.cap{padding:14px 18px;min-height:84px;font-size:clamp(15px,2.3vw,19px);line-height:1.45;font-weight:700;background:rgba(255,255,255,.7);display:flex;align-items:center}
+.start{position:absolute;inset:0;background:rgba(255,246,232,.9);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:12px;z-index:20;cursor:pointer;text-align:center;padding:12px}
+.start h2{margin:0;font-size:clamp(22px,5vw,38px)}
+.start p{margin:0;color:#5b6678;font-weight:700}
+.big{width:76px;height:76px;border-radius:50%;background:#ff8a5b;color:#fff;font-size:32px;display:flex;align-items:center;justify-content:center;box-shadow:0 6px 16px rgba(255,138,91,.5)}
+.bar{margin-top:12px;height:12px;background:var(--line);border-radius:99px;cursor:pointer;overflow:hidden}
+.bar i{display:block;height:100%;width:0;background:linear-gradient(90deg,#7cc8ff,#ff8a5b);border-radius:99px}
+.ctl{display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin-top:12px}
+button{font:inherit;font-weight:800;background:var(--btn);color:var(--ink);border:2px solid var(--line);border-radius:12px;padding:8px 14px;cursor:pointer}
+button:hover{border-color:var(--acc)}
+button.on{background:var(--acc);color:#fff;border-color:var(--acc)}
+.time{margin-left:auto;color:var(--muted);font-weight:800;font-variant-numeric:tabular-nums}
+</style>
+</head>
+<body>
+<div class="wrap">
+<h1>Radix Sort, Visualized</h1>
+<div class="video">
+  <div class="vwrap" id="vw">
+    <div class="stage" id="stage"></div>
+    <div class="start" id="start"><div class="big">▶</div><h2>How Radix Sort Works</h2><p>About 5 minutes · tap to start</p></div>
+  </div>
+  <div class="cap" id="cap"></div>
+</div>
+<div class="bar" id="bar"><i id="fill"></i></div>
+<div class="ctl">
+  <button id="play">▶ Play</button>
+  <button id="prev">⏮ Back</button>
+  <button id="next">Next ⏭</button>
+  <button id="restart">↺ Restart</button>
+  <button id="speed">Speed 1×</button>
+  <button id="voice">🔈 Voice off</button>
+  <span class="time" id="time">0:00 / 0:00</span>
+</div>
+</div>
+<script>
+const VALS=[170,45,75,90,802,24,2,66], NAMES=['ones','tens','hundreds'];
+const pad=v=>String(v).padStart(3,'0'), dg=(v,p)=>Math.floor(v/10**p)%10;
+const sorted=[...VALS].sort((a,b)=>a-b), hueOf=v=>sorted.indexOf(v)*42+10;
+const steps=[];
+const S=(cap,fn,min=4)=>steps.push({cap,fn,min});
+
+// ---------- script ----------
+S('Welcome! Today we will watch radix sort in action — a sorting method that never compares two numbers with each other.',s=>{s.tag='Radix sort'});
+S('Here is our unsorted list: 170, 45, 75, 90, 802, 24, 2 and 66. Eight numbers, all jumbled up.',s=>{});
+S('Most sorts, like quicksort and merge sort, keep asking: is this number bigger than that one? Radix sort takes a completely different road.',s=>{});
+S('The big idea: sort by digits. Look at one digit position at a time, starting from the far right, the ones place.',s=>{});
+S('To make the digits line up, we pad every number to three digits. So 2 becomes 002 and 45 becomes 045.',s=>{s.pad=true});
+S('We also need ten buckets, labelled 0 to 9. One bucket for every digit a number could have in that position.',s=>{s.buckets=true;s.tag='Ten buckets'});
+S('Each pass has two moves. Distribute: drop every number into the bucket matching its current digit. Collect: scoop them back out, bucket 0 first, bucket 9 last.',s=>{});
+S('One golden rule: stay in order. Numbers in a bucket keep the order they arrived. This is called stability, and it is what makes the trick work.',s=>{});
+
+let order=[...VALS];
+const ann=[
+ 'Pass 1 of 3: the ones digit. Only the highlighted digit matters right now. Ignore the rest.',
+ 'Pass 2 of 3: the tens digit. The list is already sorted by ones, and that order will break any ties.',
+ 'Pass 3 of 3: the hundreds digit, the most important one. Leading zeros simply count as 0.'];
+for(let p=0;p<3;p++){
+  const nm=NAMES[p], base=`Pass ${p+1} · ${nm} digit`;
+  S(ann[p],s=>{s.hl=p;s.act=null;s.actB=null;s.tag=base},6);
+  const bk=Array.from({length:10},()=>[]);
+  order.forEach(v=>{
+    const d=dg(v,p), k=bk[d].length, prev=bk[d][k-1]; bk[d].push(v);
+    S(`${pad(v)} → ${nm} digit ${d} → bucket ${d}`+(k?`, behind ${pad(prev)}`:''),
+      s=>{s.loc[v]={t:'b',b:d,k};s.act=v;s.actB=d;s.tag=base+' · Distribute'},2.4);
+  });
+  const nxt=[]; let first=true;
+  bk.forEach((arr,b)=>{
+    if(!arr.length) return;
+    const start=nxt.length; nxt.push(...arr);
+    const cap=(first?'Now collect: read buckets 0 to 9 and refill the row. ':'')+`Bucket ${b}: ${arr.map(pad).join(', ')}`;
+    first=false;
+    S(cap,s=>{arr.forEach((v,j)=>s.loc[v]={t:'r',i:start+j});s.act=null;s.actB=b;s.tag=base+' · Collect'},2.6);
+  });
+  order=nxt;
+  if(p<2) S(`Pass ${p+1} done. ${p?'Sorted by the last two digits':'Sorted by the last digit'}: ${order.map(pad).join(', ')}. ${p?'One more pass to go.':'Now the next digit.'}`,
+    s=>{s.act=null;s.actB=null},5);
+}
+S(`Done! After the hundreds pass the list reads ${order.map(pad).join(', ')}. Fully sorted, and we never compared two numbers.`,
+  s=>{s.hl=-1;s.act=null;s.actB=null;s.done=true;s.tag='Sorted! ✓'});
+S('Why does it work? The last pass sorts by the most important digit. When two numbers tie there, the earlier passes already ordered them correctly, thanks to stable buckets.',s=>{});
+S('How fast is it? Each pass touches every number once. With n numbers and d digits, that is about d times n steps. Linear in n when d stays small.',s=>{});
+S('Comparison sorts can never beat n log n in the worst case. Radix sort can, because it uses the digits themselves instead of comparing.',s=>{});
+S('It shines on integers, IDs, phone numbers, dates, even words, treating each letter as a digit. It is less handy for decimals or numbers with a huge number of digits.',s=>{});
+S('Recap: pad the numbers, then for each digit from right to left, distribute into buckets and collect in order. Thanks for watching!',s=>{});
+
+steps.forEach(st=>{st.dur=Math.max(st.min,st.cap.split(/\s+/).length/3+0.9)});
+const cum=[0]; steps.forEach(st=>cum.push(cum[cum.length-1]+st.dur));
+const TOTAL=cum[cum.length-1];
+
+// ---------- stage ----------
+const stage=document.getElementById('stage');
+const tagEl=Object.assign(document.createElement('div'),{className:'tag'}); stage.appendChild(tagEl);
+const l1=Object.assign(document.createElement('div'),{className:'lbl',textContent:'The list'}); l1.style.cssText='left:129px;top:36px;display:none'; 
+const l2=Object.assign(document.createElement('div'),{className:'lbl',textContent:'Buckets'}); l2.style.cssText='left:14px;top:126px;opacity:0;transition:opacity .6s';
+stage.append(l2);
+const bks=[];
+for(let b=0;b<10;b++){
+  const e=document.createElement('div'); e.className='bk';
+  e.style.left=(14+b*88)+'px'; e.style.background=`hsl(${b*36} 70% 93%)`; e.style.borderColor=`hsl(${b*36} 55% 78%)`;
+  e.innerHTML=`<b style="color:hsl(${b*36} 45% 38%)">${b}</b>`; stage.appendChild(e); bks.push(e);
+}
+const els={};
+VALS.forEach(v=>{const e=document.createElement('div');e.className='it';e.style.background=`hsl(${hueOf(v)} 80% 86%)`;stage.appendChild(e);els[v]=e});
+
+let state, idx=0, el=0, playing=false, speed=1, voice=false;
+function build(i){
+  const s={loc:{},buckets:false,hl:-1,act:null,actB:null,done:false,pad:false,tag:''};
+  VALS.forEach((v,j)=>s.loc[v]={t:'r',i:j});
+  for(let j=0;j<=i;j++) steps[j].fn(s);
+  return s;
+}
+function render(){
+  const s=state;
+  tagEl.textContent=s.tag||'Radix sort';
+  l2.style.opacity=s.buckets?1:0;
+  bks.forEach((b,i)=>{b.classList.toggle('show',s.buckets);b.classList.toggle('on',s.actB===i)});
+  VALS.forEach(v=>{
+    const e=els[v], L=s.loc[v], x=L.t==='r'?129+L.i*82:14+L.b*88+6, y=L.t==='r'?58:190+L.k*38;
+    e.style.transform=`translate(${x}px,${y}px)`;
+    const str=s.pad?pad(v):String(v), hp=s.hl>=0?str.length-1-s.hl:-1;
+    e.innerHTML=[...str].map((c,j)=>`<span class="${j===hp?'hd':''}">${c}</span>`).join('');
+    e.classList.toggle('act',s.act===v);
+    e.classList.toggle('done',s.done);
+  });
+}
+const $=id=>document.getElementById(id);
+const fmt=t=>{t=Math.floor(t);return Math.floor(t/60)+':'+String(t%60).padStart(2,'0')};
+function speak(){
+  if(!('speechSynthesis' in window)) return;
+  speechSynthesis.cancel();
+  if(!voice||!playing) return;
+  try{const u=new SpeechSynthesisUtterance(steps[idx].cap.replace(/→/g,',').replace(/·/g,','));u.rate=Math.min(1.1*speed,2);speechSynthesis.speak(u)}catch(e){}
+}
+function go(i,e0=0){
+  idx=Math.max(0,Math.min(steps.length-1,i)); el=e0; state=build(idx); render();
+  $('cap').textContent=steps[idx].cap; upd(); speak();
+}
+function upd(){
+  const t=cum[idx]+Math.min(el,steps[idx].dur);
+  $('fill').style.width=(t/TOTAL*100)+'%'; $('time').textContent=fmt(t)+' / '+fmt(TOTAL);
+}
+function setPlay(p){
+  playing=p; $('play').textContent=p?'⏸ Pause':'▶ Play'; $('play').classList.toggle('on',p);
+  if(p){$('start').style.display='none'; speak()} else if('speechSynthesis' in window) speechSynthesis.cancel();
+}
+let last=0;
+function tick(ts){
+  const dt=Math.min((ts-last)/1000,0.2); last=ts;
+  if(playing){
+    el+=dt*speed;
+    if(el>=steps[idx].dur){
+      if(idx<steps.length-1) go(idx+1); else {el=steps[idx].dur;setPlay(false)}
+    }
+    upd();
+  }
+  requestAnimationFrame(tick);
+}
+$('play').onclick=()=>{ if(!playing&&idx===steps.length-1&&el>=steps[idx].dur-0.01) go(0); setPlay(!playing) };
+$('start').onclick=()=>setPlay(true);
+$('prev').onclick=()=>{go(idx-1);};
+$('next').onclick=()=>{go(idx+1);};
+$('restart').onclick=()=>{go(0);setPlay(true)};
+$('speed').onclick=()=>{speed=speed===1?1.5:speed===1.5?2:0.75*(speed===2?1:1);if(speed===2)speed=2;
+  const seq=[1,1.5,2,0.75];};
+// cleaner speed cycle
+(function(){const seq=[1,1.5,2,0.75];let k=0;$('speed').onclick=()=>{k=(k+1)%seq.length;speed=seq[k];$('speed').textContent='Speed '+speed+'×';if(voice&&playing)speak()}})();
+$('voice').onclick=()=>{voice=!voice;$('voice').classList.toggle('on',voice);$('voice').textContent=voice?'🔊 Voice on':'🔈 Voice off';speak()};
+$('bar').onclick=e=>{
+  const r=e.currentTarget.getBoundingClientRect(), t=(e.clientX-r.left)/r.width*TOTAL;
+  let i=cum.findIndex((c,j)=>t>=c&&t<cum[j+1]); if(i<0)i=steps.length-1;
+  go(i,t-cum[i]);
+};
+document.addEventListener('keydown',e=>{
+  if(e.code==='Space'){e.preventDefault();$('play').click()}
+  if(e.code==='ArrowRight')go(idx+1); if(e.code==='ArrowLeft')go(idx-1);
+});
+function fit(){const w=$('vw').clientWidth;stage.style.transform=`scale(${w/900})`}
+new ResizeObserver(fit).observe($('vw')); fit();
+go(0); requestAnimationFrame(t=>{last=t;requestAnimationFrame(tick)});
+</script>
+</body>
+</html>
